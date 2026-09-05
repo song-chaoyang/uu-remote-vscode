@@ -1,0 +1,1201 @@
+{
+  "name": "uuyc-cli",
+  "displayName": "UU远程助手 (UU Remote)",
+  "description": "网易 UU远程 (GameViewer) 的 VSCode 集成:设备连接、云电脑管理、远程终端、附加到编辑器、AI 工具(MCP)、码率/模式设置与输入诊断。基于官方 uuyc-cli 封装。",
+  "version": "0.7.0",
+  "publisher": "song-chaoyang",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.136.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "uu",
+    "uuyc",
+    "remote",
+    "gameviewer",
+    "netease",
+    "cloud pc",
+    "remote control"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onFileSystem:uu-remote"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "uu-remote.mcpServer",
+        "label": "UU远程助手 MCP"
+      }
+    ],
+    "languageModelTools": [
+      {
+        "name": "uu_list_devices",
+        "displayName": "列出 UU远程设备",
+        "modelDescription": "列出 UU远程账号下所有可连接的远程设备,含名称、设备 ID、在线状态与当前串流连接状态。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuDevices",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "uu_remote_exec",
+        "displayName": "远程执行 PowerShell",
+        "modelDescription": "在指定的 UU远程设备上执行一条 shell 命令并返回输出。Windows 被控端用 PowerShell 语法;macOS/Linux 用 zsh/bash 语法。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuExec",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            },
+            "command": {
+              "type": "string",
+              "description": "要执行的 PowerShell 命令"
+            },
+            "shell": {
+              "type": "string",
+              "enum": [
+                "powershell",
+                "zsh",
+                "bash"
+              ],
+              "description": "被控端 Shell;Windows 默认 powershell,macOS/Linux 选 zsh 或 bash"
+            }
+          },
+          "required": [
+            "device_id",
+            "command"
+          ]
+        }
+      },
+      {
+        "name": "uu_remote_list_dir",
+        "displayName": "列出远程目录",
+        "modelDescription": "列出远程设备上指定目录的文件与子目录(含大小)。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuDir",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            },
+            "path": {
+              "type": "string",
+              "description": "远程 Windows 目录绝对路径"
+            },
+            "shell": {
+              "type": "string",
+              "enum": [
+                "powershell",
+                "zsh",
+                "bash"
+              ],
+              "description": "被控端 Shell;Windows 默认 powershell,macOS/Linux 选 zsh 或 bash"
+            }
+          },
+          "required": [
+            "device_id",
+            "path"
+          ]
+        }
+      },
+      {
+        "name": "uu_remote_read_file",
+        "displayName": "读取远程文件",
+        "modelDescription": "读取远程设备上的文本文件内容(UTF-8,≤256KB)。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuRead",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            },
+            "path": {
+              "type": "string",
+              "description": "远程 Windows 文件绝对路径"
+            },
+            "shell": {
+              "type": "string",
+              "enum": [
+                "powershell",
+                "zsh",
+                "bash"
+              ],
+              "description": "被控端 Shell;Windows 默认 powershell,macOS/Linux 选 zsh 或 bash"
+            }
+          },
+          "required": [
+            "device_id",
+            "path"
+          ]
+        }
+      },
+      {
+        "name": "uu_remote_write_file",
+        "displayName": "写入远程文件",
+        "modelDescription": "将文本内容写入远程设备的指定文件(UTF-8,≤512KB,自动创建,覆盖已存在文件)。破坏性操作。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuWrite",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            },
+            "path": {
+              "type": "string",
+              "description": "远程 Windows 文件绝对路径"
+            },
+            "content": {
+              "type": "string",
+              "description": "要写入的文本内容"
+            },
+            "shell": {
+              "type": "string",
+              "enum": [
+                "powershell",
+                "zsh",
+                "bash"
+              ],
+              "description": "被控端 Shell;Windows 默认 powershell,macOS/Linux 选 zsh 或 bash"
+            }
+          },
+          "required": [
+            "device_id",
+            "path",
+            "content"
+          ]
+        }
+      },
+      {
+        "name": "uu_connect_device",
+        "displayName": "串流连接设备",
+        "modelDescription": "发起对远程设备的串流连接(远程控制),窗口由 UU远程主应用打开。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuConnect",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            }
+          },
+          "required": [
+            "device_id"
+          ]
+        }
+      },
+      {
+        "name": "uu_disconnect_device",
+        "displayName": "断开设备连接",
+        "modelDescription": "断开远程设备的串流连接;不传 device_id 则断开全部。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuDisconnect",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID;省略则断开全部"
+            }
+          }
+        }
+      },
+      {
+        "name": "uu_cloudpc_list",
+        "displayName": "列出云电脑",
+        "modelDescription": "列出 UU远程账号下的云电脑,含 ID、名称、运行状态。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuCloudPcs",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "uu_cloudpc_power",
+        "displayName": "云电脑开机/关机",
+        "modelDescription": "对指定云电脑执行开机(on)或关机(off)。关机为破坏性操作。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuCloudPcPower",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "cloudpc_id": {
+              "type": "string",
+              "description": "云电脑 ID(来自 uu_cloudpc_list)"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "on",
+                "off"
+              ],
+              "description": "on=开机,off=关机"
+            }
+          },
+          "required": [
+            "cloudpc_id",
+            "action"
+          ]
+        }
+      },
+      {
+        "name": "uu_echo_test",
+        "displayName": "测试主应用通信",
+        "modelDescription": "向 UU远程主应用发送回显消息,验证 CLI 与主应用通信是否正常。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuEcho",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "message": {
+              "type": "string",
+              "description": "要回显的消息(默认 hello)"
+            }
+          }
+        }
+      },
+      {
+        "name": "uu_local_device_id",
+        "displayName": "获取本机设备 ID",
+        "modelDescription": "获取当前这台电脑在 UU远程中的设备 ID。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuMyId",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "uu_pty_open",
+        "displayName": "打开交互式远程终端",
+        "modelDescription": "在目标设备上打开持久交互式远程终端,返回 handle 与屏幕快照。处理 ssh 密码、y/n 确认等交互场景;普通单次命令优先用 uu_remote_exec。",
+        "toolReferenceName": "uuPtyOpen",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            },
+            "shell": {
+              "type": "string",
+              "enum": [
+                "powershell",
+                "cmd",
+                "zsh",
+                "bash"
+              ],
+              "description": "远程 Shell;Windows 默认 powershell"
+            }
+          },
+          "required": [
+            "device_id"
+          ]
+        },
+        "canBeReferencedInPrompt": true
+      },
+      {
+        "name": "uu_pty_send",
+        "displayName": "向交互终端发送输入",
+        "modelDescription": "向 uu_pty_open 打开的交互式终端发送输入(\\r 表示回车),等待 wait_ms 后返回屏幕快照。",
+        "toolReferenceName": "uuPtySend",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "会话 handle"
+            },
+            "keys": {
+              "type": "string",
+              "description": "要发送的输入;\\r 表示回车"
+            },
+            "wait_ms": {
+              "type": "number",
+              "description": "发送后等待毫秒数(默认 500)"
+            }
+          },
+          "required": [
+            "handle",
+            "keys"
+          ]
+        },
+        "canBeReferencedInPrompt": true
+      },
+      {
+        "name": "uu_pty_read",
+        "displayName": "读取交互终端屏幕",
+        "modelDescription": "读取交互式终端当前屏幕快照。",
+        "toolReferenceName": "uuPtyRead",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "会话 handle"
+            }
+          },
+          "required": [
+            "handle"
+          ]
+        },
+        "canBeReferencedInPrompt": true
+      },
+      {
+        "name": "uu_pty_close",
+        "displayName": "关闭交互终端",
+        "modelDescription": "关闭交互式终端会话(远程正常 exit,不残留)。",
+        "toolReferenceName": "uuPtyClose",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "handle": {
+              "type": "string",
+              "description": "会话 handle"
+            }
+          },
+          "required": [
+            "handle"
+          ]
+        },
+        "canBeReferencedInPrompt": true
+      },
+      {
+        "name": "uu_remote_launch",
+        "displayName": "远程启动程序",
+        "modelDescription": "在远程设备上启动一个程序(Start-Process),如记事本、任务管理器、任意应用。仅 Windows 被控端。",
+        "canBeReferencedInPrompt": true,
+        "toolReferenceName": "uuLaunch",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "device_id": {
+              "type": "string",
+              "description": "目标设备 ID"
+            },
+            "program": {
+              "type": "string",
+              "description": "程序路径或名称,如 notepad.exe"
+            }
+          },
+          "required": [
+            "device_id",
+            "program"
+          ]
+        }
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "uu-remote",
+          "title": "UU远程",
+          "icon": "media/uu.svg"
+        }
+      ]
+    },
+    "views": {
+      "uu-remote": [
+        {
+          "id": "uuDevices",
+          "name": "设备"
+        },
+        {
+          "id": "uuCloudPcs",
+          "name": "云电脑"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "uuDevices",
+        "contents": "正在连接 UU远程主应用…\n若长时间无响应,请确认主应用已运行并登录、本机已安装 uuyc-cli。\n[刷新设备列表](command:uu.refreshDevices)\n[打开输出日志](command:uu.showOutput)\n[设置 CLI 路径](command:uu.openCliSettings)"
+      },
+      {
+        "view": "uuCloudPcs",
+        "contents": "正在获取云电脑列表…\n请确认 UU远程主应用已运行并登录。\n[刷新云电脑列表](command:uu.cloudpc.refresh)\n[打开输出日志](command:uu.showOutput)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "uu.refreshDevices",
+        "title": "UU远程: 刷新设备列表",
+        "icon": "$(refresh)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.connectDevice",
+        "title": "UU远程: 连接设备(串流)",
+        "icon": "$(play)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.disconnectDevice",
+        "title": "UU远程: 断开设备",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.disconnectAllDevices",
+        "title": "UU远程: 断开所有设备",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showDeviceStatus",
+        "title": "UU远程: 查看连接状态",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.getLocalDeviceId",
+        "title": "UU远程: 获取本机设备 ID",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.resetCustomCode",
+        "title": "UU远程: 重置自定义验证码",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.openCliSettings",
+        "title": "UU远程: 打开 CLI 路径设置",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showDeviceDetails",
+        "title": "UU远程: 设备详情",
+        "icon": "$(info)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.copyDeviceId",
+        "title": "UU远程: 复制设备 ID",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.attachToEditor",
+        "title": "UU远程: 附加到编辑器 (Attach to Editor)",
+        "icon": "$(remote-explorer)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.cloudpc.refresh",
+        "title": "UU远程: 刷新云电脑列表",
+        "icon": "$(refresh)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.cloudpc.launch",
+        "title": "UU远程: 云电脑开机",
+        "icon": "$(play)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.cloudpc.shutdown",
+        "title": "UU远程: 云电脑关机",
+        "icon": "$(debug-stop)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.cloudpc.connect",
+        "title": "UU远程: 连接云电脑",
+        "icon": "$(link)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.cloudpc.disconnect",
+        "title": "UU远程: 断开云电脑",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showCloudPcDetails",
+        "title": "UU远程: 云电脑详情",
+        "icon": "$(info)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.copyCloudPcId",
+        "title": "UU远程: 复制云电脑 ID",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showUserInfo",
+        "title": "UU远程: 用户信息",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showUserDetails",
+        "title": "UU远程: 用户详情",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.copyUserId",
+        "title": "UU远程: 复制用户 ID",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.logout",
+        "title": "UU远程: 退出登录",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.downloadUuRemote",
+        "title": "UU远程: 下载安装 UU远程(官网)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.cliMissingGuide",
+        "title": "UU远程: 安装引导(未找到 CLI 时)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showWallet",
+        "title": "UU远程: 钱包余额",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showVersion",
+        "title": "UU远程: 版本信息",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.testEcho",
+        "title": "UU远程: 测试主应用通信",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.setBitrateLimit",
+        "title": "UU远程: 设置码率上限",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.toggleLitePunch",
+        "title": "UU远程: 切换连接模式 (Lite Punch)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.term.open",
+        "title": "UU远程: 打开远程终端",
+        "icon": "$(terminal)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.term.newSession",
+        "title": "UU远程: 新建远程终端会话",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.term.listSessions",
+        "title": "UU远程: 远程终端会话列表",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.term.killSession",
+        "title": "UU远程: 终止远程终端会话",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.term.attachSession",
+        "title": "UU远程: 附加远程终端会话",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.lterm.new",
+        "title": "UU远程: 新建本地 UU 终端",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.lterm.attach",
+        "title": "UU远程: 附加本地 UU 终端",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.lterm.list",
+        "title": "UU远程: 本地终端会话列表",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.lterm.has",
+        "title": "UU远程: 检查本地终端会话",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.lterm.kill",
+        "title": "UU远程: 终止本地终端会话",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.lterm.rename",
+        "title": "UU远程: 重命名本地终端会话",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.inputDiag.on",
+        "title": "UU远程: 开启输入诊断",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.inputDiag.off",
+        "title": "UU远程: 关闭输入诊断",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.inputDiag.dump",
+        "title": "UU远程: 导出输入诊断",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.inputDiag.hookReinstall",
+        "title": "UU远程: 重装键盘钩子",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.inputDiag.serverWinProbe",
+        "title": "UU远程: Win 键诊断探测",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.launchMainApp",
+        "title": "UU远程: 启动主程序",
+        "icon": "$(play)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.showOutput",
+        "title": "UU远程: 打开输出日志",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.uploadToRemote",
+        "title": "UU远程: 上传文件到设备",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.downloadFromRemote",
+        "title": "UU远程: 从设备下载文件",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.launchProgram",
+        "title": "UU远程: 远程启动程序",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.renameDeviceGuide",
+        "title": "UU远程: 重命名设备(主程序内)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.wirelessScreen.open",
+        "title": "UU远程: 打开无线副屏",
+        "icon": "$(device-mobile)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.wirelessScreen.launch",
+        "title": "UU远程: 启动无线副屏(主程序)",
+        "icon": "$(play)",
+        "category": "UU远程"
+      },
+      {
+        "command": "uu.wirelessScreen.website",
+        "title": "UU远程: 无线副屏官方介绍",
+        "category": "UU远程"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices",
+          "group": "navigation@1"
+        },
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices",
+          "group": "navigation@2"
+        },
+        {
+          "command": "uu.showDeviceStatus",
+          "when": "view == uuDevices",
+          "group": "navigation@3"
+        },
+        {
+          "command": "uu.wirelessScreen.open",
+          "when": "view == uuDevices",
+          "group": "navigation@4"
+        },
+        {
+          "command": "uu.cloudpc.refresh",
+          "when": "view == uuCloudPcs",
+          "group": "navigation@1"
+        },
+        {
+          "command": "uu.cloudpc.launch",
+          "when": "view == uuCloudPcs",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item": [
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.term.open",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "inline@2"
+        },
+        {
+          "command": "uu.showDeviceDetails",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "inline@3"
+        },
+        {
+          "command": "uu.showDeviceDetails",
+          "when": "view == uuDevices && viewItem == device-offline",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@1"
+        },
+        {
+          "command": "uu.attachToEditor",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@2"
+        },
+        {
+          "command": "uu.term.open",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@3"
+        },
+        {
+          "command": "uu.term.newSession",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@4"
+        },
+        {
+          "command": "uu.term.listSessions",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@5"
+        },
+        {
+          "command": "uu.showDeviceDetails",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@6"
+        },
+        {
+          "command": "uu.copyDeviceId",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@7"
+        },
+        {
+          "command": "uu.disconnectDevice",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@8"
+        },
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices && viewItem == device-offline",
+          "group": "uuDevice@1"
+        },
+        {
+          "command": "uu.showUserDetails",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@1"
+        },
+        {
+          "command": "uu.showWallet",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@2"
+        },
+        {
+          "command": "uu.copyUserId",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@3"
+        },
+        {
+          "command": "uu.logout",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@4"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && (viewItem == uu-group-online || viewItem == uu-group-offline)",
+          "group": "uuGroup@1"
+        },
+        {
+          "command": "uu.launchMainApp",
+          "when": "view == uuDevices && (viewItem == uu-status-app || viewItem == uu-status-login)",
+          "group": "uuStatus@1"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && viewItem == uu-status-app",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && viewItem == uu-status-login",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.cliMissingGuide",
+          "when": "view == uuDevices && viewItem == uu-status-cli",
+          "group": "uuStatus@1"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && viewItem == uu-status-cli",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.cloudpc.refresh",
+          "when": "view == uuCloudPcs && (viewItem == uu-status-app || viewItem == uu-status-cli)",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.cloudpc.launch",
+          "when": "view == uuCloudPcs && viewItem == cloudpc-shutdown",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.cloudpc.connect",
+          "when": "view == uuCloudPcs && viewItem == cloudpc-running",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.showCloudPcDetails",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "inline@2"
+        },
+        {
+          "command": "uu.cloudpc.launch",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@1"
+        },
+        {
+          "command": "uu.cloudpc.shutdown",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@2"
+        },
+        {
+          "command": "uu.cloudpc.connect",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@3"
+        },
+        {
+          "command": "uu.cloudpc.disconnect",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@4"
+        },
+        {
+          "command": "uu.showCloudPcDetails",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@5"
+        },
+        {
+          "command": "uu.copyCloudPcId",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@6"
+        },
+        {
+          "command": "uu.uploadToRemote",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@9"
+        },
+        {
+          "command": "uu.downloadFromRemote",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@10"
+        },
+        {
+          "command": "uu.launchProgram",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@11"
+        },
+        {
+          "command": "uu.renameDeviceGuide",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@12"
+        },
+        {
+          "command": "uu.wirelessScreen.launch",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@13"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.term.open",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "inline@2"
+        },
+        {
+          "command": "uu.showDeviceDetails",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "inline@3"
+        },
+        {
+          "command": "uu.showDeviceDetails",
+          "when": "view == uuDevices && viewItem == device-offline",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@1"
+        },
+        {
+          "command": "uu.attachToEditor",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@2"
+        },
+        {
+          "command": "uu.term.open",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@3"
+        },
+        {
+          "command": "uu.term.newSession",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@4"
+        },
+        {
+          "command": "uu.term.listSessions",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@5"
+        },
+        {
+          "command": "uu.showDeviceDetails",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@6"
+        },
+        {
+          "command": "uu.copyDeviceId",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@7"
+        },
+        {
+          "command": "uu.disconnectDevice",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@8"
+        },
+        {
+          "command": "uu.connectDevice",
+          "when": "view == uuDevices && viewItem == device-offline",
+          "group": "uuDevice@1"
+        },
+        {
+          "command": "uu.showUserDetails",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@1"
+        },
+        {
+          "command": "uu.showWallet",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@2"
+        },
+        {
+          "command": "uu.copyUserId",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@3"
+        },
+        {
+          "command": "uu.logout",
+          "when": "view == uuDevices && viewItem == uu-user",
+          "group": "uuUser@4"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && (viewItem == uu-group-online || viewItem == uu-group-offline)",
+          "group": "uuGroup@1"
+        },
+        {
+          "command": "uu.launchMainApp",
+          "when": "view == uuDevices && (viewItem == uu-status-app || viewItem == uu-status-login)",
+          "group": "uuStatus@1"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && viewItem == uu-status-app",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && viewItem == uu-status-login",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.cliMissingGuide",
+          "when": "view == uuDevices && viewItem == uu-status-cli",
+          "group": "uuStatus@1"
+        },
+        {
+          "command": "uu.refreshDevices",
+          "when": "view == uuDevices && viewItem == uu-status-cli",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.cloudpc.refresh",
+          "when": "view == uuCloudPcs && (viewItem == uu-status-app || viewItem == uu-status-cli)",
+          "group": "uuStatus@2"
+        },
+        {
+          "command": "uu.cloudpc.launch",
+          "when": "view == uuCloudPcs && viewItem == cloudpc-shutdown",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.cloudpc.connect",
+          "when": "view == uuCloudPcs && viewItem == cloudpc-running",
+          "group": "inline@1"
+        },
+        {
+          "command": "uu.showCloudPcDetails",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "inline@2"
+        },
+        {
+          "command": "uu.cloudpc.launch",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@1"
+        },
+        {
+          "command": "uu.cloudpc.shutdown",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@2"
+        },
+        {
+          "command": "uu.cloudpc.connect",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@3"
+        },
+        {
+          "command": "uu.cloudpc.disconnect",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@4"
+        },
+        {
+          "command": "uu.showCloudPcDetails",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@5"
+        },
+        {
+          "command": "uu.copyCloudPcId",
+          "when": "view == uuCloudPcs && (viewItem == cloudpc-running || viewItem == cloudpc-shutdown)",
+          "group": "uuCloudPc@6"
+        },
+        {
+          "command": "uu.uploadToRemote",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@9"
+        },
+        {
+          "command": "uu.downloadFromRemote",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@10"
+        },
+        {
+          "command": "uu.launchProgram",
+          "when": "view == uuDevices && viewItem == device-online",
+          "group": "uuDevice@11"
+        },
+        {
+          "command": "uu.renameDeviceGuide",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@12"
+        },
+        {
+          "command": "uu.wirelessScreen.launch",
+          "when": "view == uuDevices && (viewItem == device-online || viewItem == device-offline)",
+          "group": "uuDevice@13"
+        }
+      ]
+    },
+    "terminal": {
+      "profiles": [
+        {
+          "id": "uu.lterm",
+          "title": "UU 本地终端",
+          "icon": "terminal"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "UU远程助手",
+      "properties": {
+        "uu.cliPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "uuyc-cli 可执行文件的完整路径。留空时自动探测(常见安装目录 + `where uuyc-cli`)。\n\nUU远程安装后 CLI 通常位于 `C:\\Program Files\\Netease\\GameViewer\\bin\\uuyc-cli.exe`。"
+        },
+        "uu.autoRefreshSeconds": {
+          "type": "number",
+          "default": 10,
+          "minimum": 0,
+          "description": "设备 / 云电脑列表与连接状态的自动刷新间隔(秒)。设为 0 禁用自动刷新。"
+        },
+        "uu.term.defaultShell": {
+          "type": "string",
+          "enum": [
+            "powershell",
+            "cmd",
+            "zsh",
+            "bash"
+          ],
+          "default": "powershell",
+          "enumDescriptions": [
+            "PowerShell(Windows 远程设备默认)",
+            "CMD(Windows 远程设备)",
+            "Zsh(macOS/Linux 远程设备)",
+            "Bash(Linux 远程设备)"
+          ],
+          "description": "远程终端默认 Shell。"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "node esbuild.js --minify",
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "smoke": "node esbuild.js && node dist/smoke.cjs",
+    "test-integration": "node esbuild.js && node test/runTest.mjs",
+    "package": "npm run typecheck && npm run compile && node node_modules/@vscode/vsce/vsce package --no-dependencies --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@types/node": "^22.10.2",
+    "@types/vscode": "^1.136.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.2.1",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2",
+    "zod": "^3.25.76"
+  }
+}
