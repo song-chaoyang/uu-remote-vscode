@@ -70,7 +70,22 @@ export class DeviceGroupTreeItem extends vscode.TreeItem {
   }
 }
 
-type DeviceTreeElement = UserTreeItem | DeviceGroupTreeItem | DeviceTreeItem | StatusTreeItem;
+type DeviceTreeElement = UserTreeItem | WirelessScreenTreeItem | DeviceGroupTreeItem | DeviceTreeItem | StatusTreeItem;
+
+/** 无线副屏常驻入口节点(设备树顶部,点击打开引导面板) */
+export class WirelessScreenTreeItem extends vscode.TreeItem {
+  constructor() {
+    super('无线副屏', vscode.TreeItemCollapsibleState.None);
+    this.id = 'uu-wireless-screen';
+    this.description = '手机 / 平板 → 电脑副屏';
+    this.iconPath = new vscode.ThemeIcon('device-mobile');
+    this.contextValue = 'uu-wireless-screen';
+    this.tooltip = new vscode.MarkdownString(
+      ['**无线副屏**', '- 将闲置手机 / 平板变为电脑的无线触控副屏', '- 连接由 UU远程主程序完成,插件提供引导与一键启动', '', '点击打开引导面板;右键:启动副屏 / 官方介绍'].join('\n'),
+    );
+    this.command = { title: '打开无线副屏引导', command: 'uu.wirelessScreen.open' };
+  }
+}
 
 type ProviderState =
   | { kind: 'ready'; user: UserInfo; devices: Device[]; connectedIds: Set<string>; connectedList: ConnectedDevice[] }
@@ -152,7 +167,7 @@ export class DeviceTreeProvider implements vscode.TreeDataProvider<DeviceTreeEle
     switch (this.state.kind) {
       case 'ready': {
         const { user, devices, connectedIds } = this.state;
-        const items: DeviceTreeElement[] = [new UserTreeItem(user)];
+        const items: DeviceTreeElement[] = [new UserTreeItem(user), new WirelessScreenTreeItem()];
         const online = devices.filter((d) => d.isOnline);
         const offline = devices.filter((d) => !d.isOnline);
         if (online.length > 0) {

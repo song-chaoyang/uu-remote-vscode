@@ -2,7 +2,7 @@
   "name": "uuyc-cli",
   "displayName": "UU远程助手 (UU Remote)",
   "description": "网易 UU远程 (GameViewer) 的 VSCode 集成:设备连接、云电脑管理、远程终端、附加到编辑器、AI 工具(MCP)、码率/模式设置与输入诊断。基于官方 uuyc-cli 封装。",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "publisher": "song-chaoyang",
   "license": "MIT",
   "engines": {
@@ -951,6 +951,21 @@
           "command": "uu.wirelessScreen.forDevice",
           "when": "view == uuDevices && viewItem == device-online",
           "group": "uuDevice@13"
+        },
+        {
+          "command": "uu.wirelessScreen.open",
+          "when": "view == uuDevices && viewItem == uu-wireless-screen",
+          "group": "uuWs@1"
+        },
+        {
+          "command": "uu.wirelessScreen.launch",
+          "when": "view == uuDevices && viewItem == uu-wireless-screen",
+          "group": "uuWs@2"
+        },
+        {
+          "command": "uu.wirelessScreen.website",
+          "when": "view == uuDevices && viewItem == uu-wireless-screen",
+          "group": "uuWs@3"
         }
       ],
       "view/item/context": [
@@ -1148,6 +1163,21 @@
           "command": "uu.wirelessScreen.forDevice",
           "when": "view == uuDevices && viewItem == device-online",
           "group": "uuDevice@13"
+        },
+        {
+          "command": "uu.wirelessScreen.open",
+          "when": "view == uuDevices && viewItem == uu-wireless-screen",
+          "group": "uuWs@1"
+        },
+        {
+          "command": "uu.wirelessScreen.launch",
+          "when": "view == uuDevices && viewItem == uu-wireless-screen",
+          "group": "uuWs@2"
+        },
+        {
+          "command": "uu.wirelessScreen.website",
+          "when": "view == uuDevices && viewItem == uu-wireless-screen",
+          "group": "uuWs@3"
         }
       ]
     },

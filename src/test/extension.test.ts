@@ -64,7 +64,7 @@ suite('UU远程助手 扩展集成测试', () => {
     const roots = (await deviceProvider.getChildren()) ?? [];
     assert.ok(roots.length > 0, '设备树根节点为空(主应用可能未运行)');
 
-    const expectedRootContexts = ['uu-user', 'uu-group-online', 'uu-group-offline', 'uu-status-app', 'uu-status-login', 'uu-status-cli'];
+    const expectedRootContexts = ['uu-user', 'uu-wireless-screen', 'uu-group-online', 'uu-group-offline', 'uu-status-app', 'uu-status-login', 'uu-status-cli'];
     let deviceCount = 0;
     for (const root of roots) {
       const cv = (root as vscode.TreeItem).contextValue ?? '';
