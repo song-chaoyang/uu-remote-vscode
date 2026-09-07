@@ -85,8 +85,9 @@ export class UuToolsBackend {
       device_id: d.deviceId,
       name: d.deviceName,
       online: d.isOnline,
-      platform: d.platform,
-      platform_hint: d.platform === 1 ? 'Windows' : '未知,先用探测命令确认',
+      platform: String(d.platform),
+      platform_hint:
+        d.platform === 1 || d.platform === 4 || String(d.platform).toLowerCase() === 'windows' ? 'Windows' : '未知,先用探测命令确认',
       connected: connectedIds.has(d.deviceId),
     }));
     return JSON.stringify(

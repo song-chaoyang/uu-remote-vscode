@@ -301,7 +301,18 @@ export async function listDevices(cliPath: string): Promise<Device[]> {
 
 export async function getDeviceStatus(cliPath: string): Promise<ConnectedDevice[]> {
   const env = await execCliJson<DeviceStatusData>(cliPath, ['device', 'status']);
-  return env.data?.connected_devices ?? [];
+  // 新版 CLI 用 connected_devices,旧版 CLI 用 connections(字段名不同)
+  const raw = env.data?.connected_devices ?? env.data?.connections ?? [];
+  const list: ConnectedDevice[] = [];
+  for (const c of raw) {
+    const rec = c as Record<string, unknown>;
+    const targetId = String(rec['targetId'] ?? rec['deviceId'] ?? rec['id'] ?? '');
+    const targetName = String(rec['targetName'] ?? rec['deviceName'] ?? rec['name'] ?? '');
+    if (targetId || targetName) {
+      list.push({ targetId, targetName });
+    }
+  }
+  return list;
 }
 
 export async function listCloudPCs(cliPath: string): Promise<CloudPC[]> {
@@ -327,12 +338,41 @@ export async function getVersion(cliPath: string): Promise<string> {
 }
 
 export async function getLocalDeviceId(cliPath: string): Promise<string> {
-  return execCliText(cliPath, ['-d']);
+  // 新版 CLI:-d 直接输出本机设备 ID(纯文本)
+  try {
+    const id = await execCliText(cliPath, ['-d']);
+    if (id.trim()) {
+      return id.trim();
+    }
+  } catch (e) {
+    // 旧版 CLI 无 -d,回退 assist id(JSON data.deviceId)
+    if (e instanceof CliError && /unknown option|unexpected argument/i.test(`${e.message} ${e.stderr}`)) {
+      const env = await execCliJson<{ deviceId?: string }>(cliPath, ['assist', 'id']);
+      const id = env.data?.deviceId;
+      if (id && id.trim()) {
+        return id.trim();
+      }
+    }
+    throw e;
+  }
+  throw new CliError('未能获取本机设备 ID');
 }
 
 export async function resetCustomCode(cliPath: string, code: string): Promise<string> {
   const r = await execCli(cliPath, ['--reset-custom-code', code]);
-  return looksLikeError(r) ? Promise.reject(toCliError(r)) : friendlyResult(r.stdout);
+  if (looksLikeError(r)) {
+    // 旧版 CLI:无 --reset-custom-code,回退 assist set-code
+    const err = firstErrorLine(r) + r.stderr;
+    if (/unknown option|unexpected argument/i.test(err)) {
+      const r2 = await execCli(cliPath, ['assist', 'set-code', code]);
+      if (looksLikeError(r2)) {
+        return Promise.reject(toCliError(r2));
+      }
+      return friendlyResult(r2.stdout);
+    }
+    return Promise.reject(toCliError(r));
+  }
+  return friendlyResult(r.stdout);
 }
 
 export async function setBitrateLimit(cliPath: string, mbps: number): Promise<string> {
@@ -346,7 +386,16 @@ export async function setLitePunch(cliPath: string, disabled: boolean): Promise<
 }
 
 export async function echo(cliPath: string, message: string): Promise<string> {
-  return execCliText(cliPath, ['echo', message]);
+  // 新版 CLI:echo 输出纯文本;旧版 CLI:输出 JSON 信封 {data:{message:"echo: xxx"}}
+  const text = await execCliText(cliPath, ['echo', message]);
+  const obj = tryParseJson(text);
+  if (obj && typeof obj === 'object') {
+    const msg = (obj as { data?: { message?: unknown }; message?: unknown }).data?.message;
+    if (typeof msg === 'string' && msg) {
+      return msg.replace(/^echo:\s*/i, '');
+    }
+  }
+  return text.replace(/^echo:\s*/i, '');
 }
 
 /** `lterm ls` 表格解析:NAME  SHELL  STATE  CREATED_AT_MS(列间 2+ 空格) */
@@ -375,7 +424,27 @@ export function parseLtermLs(text: string): LtermSession[] {
 
 export async function listLtermSessions(cliPath: string): Promise<LtermSession[]> {
   const text = await execCliText(cliPath, ['lterm', 'ls']);
-  return parseLtermLs(text);
+  // 新版 CLI:TSV 表格;旧版 CLI:JSON 信封 data.sessions(name/shell/state/created_at_ms)
+  const fromTsv = parseLtermLs(text);
+  if (fromTsv.length > 0 || /^NAME\b/.test(text.trim())) {
+    return fromTsv;
+  }
+  const obj = tryParseJson(text);
+  if (obj && typeof obj === 'object') {
+    const sessions = (obj as { data?: { sessions?: Array<Record<string, unknown>> } }).data?.sessions;
+    if (Array.isArray(sessions)) {
+      return sessions
+        .map((s) => ({
+          name: String(s['name'] ?? ''),
+          shell: String(s['shell'] ?? ''),
+          state: String(s['state'] ?? ''),
+          createdAtMs: typeof s['created_at_ms'] === 'number' ? (s['created_at_ms'] as number) : undefined,
+          raw: JSON.stringify(s),
+        }))
+        .filter((s) => s.name.length > 0);
+    }
+  }
+  return [];
 }
 
 /**
@@ -418,13 +487,26 @@ export function isValidShell(shell: string, shells: ShellKind[]): shell is Shell
   return (shells as string[]).includes(shell);
 }
 
-/** 设备 platform 字段的可读名(1 与 4 均实测为 Windows;未确认的显示原始值,不做猜测) */
-export function platformName(platform?: number): string {
-  if (platform === undefined) {
+/** 设备 platform 字段的可读名(数字:1 与 4 均实测为 Windows;字符串:windows/mac/linux 直接映射) */
+export function platformName(platform?: number | string): string {
+  if (platform === undefined || platform === '') {
     return '';
   }
-  const known: Record<number, string> = { 1: 'Windows', 4: 'Windows' };
-  return known[platform] ?? `platform ${platform}`;
+  if (typeof platform === 'number') {
+    const known: Record<number, string> = { 1: 'Windows', 4: 'Windows' };
+    return known[platform] ?? `platform ${platform}`;
+  }
+  const known: Record<string, string> = {
+    windows: 'Windows',
+    win32: 'Windows',
+    macos: 'macOS',
+    mac: 'macOS',
+    linux: 'Linux',
+    android: 'Android',
+    ios: 'iOS',
+  };
+  const name = known[platform.toLowerCase()];
+  return name ?? platform;
 }
 
 /**
@@ -446,8 +528,8 @@ export function launchMainApp(cliPath: string): { command: string; args: string[
     if (appBundle.endsWith('.app') && existsSync(appBundle)) {
       return { command: 'open', args: ['-a', appBundle] };
     }
-    // CLI 不在 .app 内时,尝试常见应用名
-    for (const app of ['/Applications/UU远程.app', '/Applications/GameViewer.app']) {
+    // CLI 不在 .app 内时,尝试常见应用名(macOS 安装包为 UURemote.app,部分版本为 UU远程.app)
+    for (const app of ['/Applications/UURemote.app', '/Applications/UU远程.app', '/Applications/GameViewer.app']) {
       if (existsSync(app)) {
         return { command: 'open', args: ['-a', app] };
       }

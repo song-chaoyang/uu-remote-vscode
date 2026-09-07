@@ -23,6 +23,7 @@ import {
   parseTermSessions,
   tryParseJson,
 } from './cli';
+import { probeCliFeatures } from './capabilities';
 import { resolveCliPath } from './cli';
 import { TermBridge } from './termBridge';
 import { VtScreen, extractOutput } from './vt';
@@ -125,6 +126,13 @@ async function main(): Promise<void> {
   );
 
   // 7. 错误检测:term 不带设备名应识别为错误并抛 CliError
+  //    (新版 CLI 报 "device name required";旧版 CLI 报 "Unknown option '--device-id'",同样算错误检测通过)
+  const feats = await probeCliFeatures(cli);
+  check(
+    'capability probe: term channel',
+    typeof feats.termChannel === 'boolean',
+    `termChannel=${feats.termChannel} dashD=${feats.dashD} inputDiag=${feats.inputDiag}`,
+  );
   let errorCaught = '';
   try {
     await execCliText(cli, ['term', '--list-sessions']);
@@ -132,7 +140,10 @@ async function main(): Promise<void> {
   } catch (e) {
     errorCaught = e instanceof CliError ? e.message : `非 CliError 异常: ${String(e)}`;
   }
-  check('error detection (term w/o device)', /device name/i.test(errorCaught), errorCaught);
+  const errOk = feats.termChannel
+    ? /device name/i.test(errorCaught)
+    : errorCaught.length > 10 && !/未抛出错误/.test(errorCaught);
+  check('error detection (term w/o device)', errOk, errorCaught);
 
   // 8. 未找到 CLI 路径时应抛出友好错误
   let pathError = '';
@@ -191,7 +202,7 @@ async function main(): Promise<void> {
     } catch (e) {
       // 通道不可用(环境问题,如本机主控端版本低于被控端):验证错误消息必须带 stderr 诊断
       const msg = e instanceof Error ? e.message : String(e);
-      const hasDiag = /版本过低|不再兼容|升级主控端|超时|已断开\s——/.test(msg);
+      const hasDiag = /版本过低|不再兼容|升级主控端|超时|已断开\s——|不支持远程终端管道通道/.test(msg);
       check('bridge: 失败时错误必须携带诊断信息', hasDiag && msg.length > 20, msg.slice(0, 160));
       console.log('  (远程通道当前不可用 —— 属环境问题(本机 UU远程 主控端需升级),错误质量已验证)');
     } finally {

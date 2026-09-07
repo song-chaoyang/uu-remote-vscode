@@ -21,6 +21,7 @@
  *   base64 + fold -w 76 传输;哨兵用相邻字符串拼接(echo "A""B")避免回显误判
  */
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
+import { probeCliFeatures } from './capabilities';
 import { VtScreen } from './vt';
 import type { ShellKind } from './types';
 
@@ -211,6 +212,17 @@ export class TermBridge {
   }
 
   private async start(): Promise<void> {
+    // 旧版 CLI(如本机 macOS UURemote 4.39.1 自带的 CLI 1.0.0)的 term 仅有
+    // open/exit 子命令(打开主程序终端窗口),无 --device-id/--new-session 管道通道。
+    // 启动前探测一次(结果缓存),避免 spawn 后挂 20 秒超时才失败。
+    const feats = await probeCliFeatures(this.cliPath);
+    if (!feats.termChannel) {
+      throw new BridgeError(
+        '当前 uuyc-cli 版本不支持远程终端管道通道(term --device-id)。这是本机 UU远程主程序版本限制:' +
+          '请升级主程序到支持该通道的版本(可在主程序内检查更新),或直接在 UU远程主程序中使用远程终端。',
+      );
+    }
+
     this.screen.reset();
     this.stderrTail.length = 0;
     this.child = spawn(this.cliPath, ['term', '--device-id', this.deviceId, '--new-session', '--shell', this.shell], {

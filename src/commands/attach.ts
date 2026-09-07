@@ -68,11 +68,12 @@ async function attachFlow(dev: Device): Promise<void> {
     await vscode.commands.executeCommand('vscode.openFolder', uri, { forceNewWindow: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    // 握手失败:可能是本机主控端版本过低(CLI 会报"版本过低"),也可能是被控端非 Windows
-    if (/无法就绪|超时|版本过低/.test(msg)) {
+    // 握手失败:可能是本机主控端版本过低(CLI 会报"版本过低"),可能是被控端非 Windows,
+    // 也可能是旧版 CLI 无 term 管道通道(TermBridge 探测失败)
+    if (/无法就绪|超时|版本过低|不支持远程终端管道通道/.test(msg)) {
       void vscode.window
         .showErrorMessage(
-          `UU远程:「附加到编辑器」连接「${dev.deviceName}」失败 —— ${msg}。常见原因:① 本机 UU远程 主控端版本低于被控端,请到 uuyc.163.com/download 升级本机后重试;② 该设备不是 Windows 被控端(当前仅支持 Windows)。`,
+          `UU远程:「附加到编辑器」连接「${dev.deviceName}」失败 —— ${msg}。常见原因:① 本机 UU远程 主控端版本低于被控端,请到 uuyc.163.com/download 升级本机后重试;② 该设备不是 Windows 被控端(当前仅支持 Windows);③ 本机 uuyc-cli 较旧,不支持远程终端管道通道,请升级主程序。`,
           '打开下载页',
           '查看日志',
         )

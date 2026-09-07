@@ -12,7 +12,14 @@
   2. 常见安装目录(Windows:`C:\Program Files\Netease\GameViewer\bin\uuyc-cli.exe` 等;macOS:`/Applications/UU远程.app/Contents/MacOS/` 等)
   3. 系统 `PATH`(`where/which uuyc-cli`)
 
-> **主控端与被控端版本需匹配**:若远程终端报「主控端版本过低,被控端不再兼容此协议」,请把**本机** UU远程升级到与被控端相同或更新的版本。
+> **主控端与被控端版本需匹配**:若远程终端报「主控端版本过低,被控端不再兼容此协议」,请把**本机** UU远程 升级到与被控端相同或更新的版本。
+
+
+> **CLI 版本兼容**:插件会自动探测本机 `uuyc-cli` 的能力并自适应。
+
+> - 新版 CLI(含 `term --device-id` 管道通道、`-d`、`input-diag`)支持**全部功能**;
+
+> - 旧版 CLI(macOS UURemote 4.39.x 自带,无上述命令)下,设备/云电脑管理、本机 ID、自定义验证码、本地 UU 终端(`lterm`)、无线副屏引导等仍可用;远程终端管道通道、文件传输、附加到编辑器、AI 远程执行/PTY 工具会给出升级引导提示(在 UU远程主程序中使用内置终端不受影响)。
 
 ## 平台支持
 

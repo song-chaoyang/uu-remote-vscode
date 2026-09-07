@@ -9,7 +9,8 @@ export interface Device {
   deviceId: string;
   deviceName: string;
   isOnline: boolean;
-  platform: number;
+  /** 新版 CLI 为数字(1/4 = Windows),旧版 CLI 为字符串("windows"/"mac"/...) */
+  platform: number | string;
 }
 
 export interface DeviceListData {
@@ -23,6 +24,8 @@ export interface ConnectedDevice {
 
 export interface DeviceStatusData {
   connected_devices?: ConnectedDevice[];
+  /** 旧版 CLI 使用 connections 字段(新版为 connected_devices) */
+  connections?: Array<ConnectedDevice | { targetId?: string; targetName?: string; deviceId?: string; deviceName?: string; id?: string; name?: string }>;
 }
 
 export interface CloudPC {

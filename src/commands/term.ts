@@ -11,6 +11,7 @@ import {
   parseTermSessions,
   resolveCliPath,
 } from '../cli';
+import { probeCliFeatures } from '../capabilities';
 import { getExtensionConfig } from '../config';
 import { log, showOutput } from '../log';
 import type { Device, LtermSession, ShellKind, TermSessionInfo } from '../types';
@@ -41,13 +42,36 @@ async function pickShell(shells: ShellKind[], placeHolder: string, defaultShell:
   return chosen?.value;
 }
 
+/**
+ * 旧版 CLI 无 term --device-id 管道通道:打开远程终端前先探测,
+ * 不支持时给出清晰引导(升级主程序 / 到主程序中使用内置终端)。
+ */
+async function ensureTermChannel(cliPath: string): Promise<boolean> {
+  const feats = await probeCliFeatures(cliPath);
+  if (feats.termChannel) {
+    return true;
+  }
+  warn(
+    '当前 uuyc-cli 版本不支持在 VSCode 中打开远程终端(需要新版 CLI 的 term --device-id 通道)。' +
+      '请升级本机 UU远程主程序到最新版本,或在 UU远程主程序中使用自带远程终端;本地 UU 终端(lterm)不受影响。',
+  );
+  return false;
+}
+
 interface RemoteSessionPayload {
   sessions: TermSessionInfo[];
   raw: string;
 }
 
-/** 获取指定设备的远程终端会话列表(CLI 有会话时才输出 JSON,无会话输出 "No active sessions.") */
-async function fetchRemoteSessions(cliPath: string, device: Device): Promise<RemoteSessionPayload> {
+/** 获取指定设备的远程终端会话列表(新版 CLI 有会话时才输出 JSON,无会话输出 "No active sessions.") */
+async function fetchRemoteSessions(cliPath: string, device: Device): Promise<RemoteSessionPayload | undefined> {
+  const feats = await probeCliFeatures(cliPath);
+  if (!feats.termChannel) {
+    warn(
+      '当前 uuyc-cli 版本不支持远程终端会话管理(term --list-sessions)。请升级本机 UU远程主程序,或在主程序中使用远程终端。',
+    );
+    return undefined;
+  }
   const r = await execCli(cliPath, ['term', '--device-id', device.deviceId, '--list-sessions']);
   if (looksLikeError(r)) {
     throw new CliError(firstErrorLine(r));
@@ -61,6 +85,9 @@ async function pickRemoteSession(
   placeHolder: string,
 ): Promise<TermSessionInfo | undefined> {
   const payload = await fetchRemoteSessions(cliPath, device);
+  if (!payload) {
+    return undefined;
+  }
   if (payload.sessions.length === 0) {
     if (/no active sessions/i.test(payload.raw)) {
       ok(`设备「${device.deviceName}」上无活动的远程终端会话`);
@@ -98,6 +125,10 @@ export function registerTermCommands(context: vscode.ExtensionContext, devicePro
     if (!dev) {
       return;
     }
+    const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
+    if (!(await ensureTermChannel(cliPath))) {
+      return;
+    }
     const shell = await pickShell(REMOTE_SHELLS, '选择远程 Shell', getExtensionConfig().defaultShell);
     if (!shell) {
       return;
@@ -108,6 +139,10 @@ export function registerTermCommands(context: vscode.ExtensionContext, devicePro
   registerCommand(context, 'uu.term.newSession', async (selection: unknown) => {
     const dev = await resolveFromSelection(selection, deviceProvider.currentDevices, pickDevice, '选择设备(将新建远程终端会话)');
     if (!dev) {
+      return;
+    }
+    const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
+    if (!(await ensureTermChannel(cliPath))) {
       return;
     }
     const shell = await pickShell(REMOTE_SHELLS, '选择远程 Shell', getExtensionConfig().defaultShell);

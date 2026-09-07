@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.8.2
+
+- **CLI 版本兼容层(适配旧版 uuyc-cli / macOS UURemote 4.39.x 自带 CLI 1.0.0)**:
+  - `echo` 输出兼容:旧版 CLI 返回 JSON 信封,自动解包 `data.message`(新版纯文本照常)
+  - 本机设备 ID:旧版无 `-d`,自动回退 `assist id`;新版保留原路径
+  - 自定义验证码:旧版无 `--reset-custom-code`,自动回退 `assist set-code`
+  - `lterm ls`:旧版输出 JSON、新版输出 TSV 表格,双格式解析
+  - `device status`:兼容旧版 `connections` 字段(新版为 `connected_devices`)
+  - 平台字段:兼容字符串平台("windows"/"mac"/"linux")与数字(1/4=Windows)
+  - **能力探测 + 优雅降级**:启动前探测 term 管道通道 / input-diag / 码率与连接模式等能力(按 CLI 路径缓存)。
+    旧版 CLI 上,远程终端、文件传输、附加到编辑器、AI 远程执行/PTY 工具快速失败并给出升级引导,
+    不再挂 20 秒超时或报无意义的 "Unknown option"
+  - macOS 主程序识别补全 `UURemote.app`(仅识别 UU远程.app / GameViewer.app 时找不到主程序)
+- 冒烟测试:能力探测断言 + 错误检测断言自适应新旧 CLI;TermBridge 失败路径诊断覆盖新提示
+- 冒烟测试(真机)与集成测试全通过
+
 ## 0.8.1
 
 - 无线副屏入口增强:设备树新增「无线副屏」常驻入口节点(用户节点下方,单击打开引导面板,右键:打开引导/启动主程序/官方介绍)

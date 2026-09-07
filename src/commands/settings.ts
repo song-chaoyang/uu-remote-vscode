@@ -1,9 +1,25 @@
 import * as vscode from 'vscode';
-import { setBitrateLimit, setLitePunch } from '../cli';
-import { ok, registerCommand, withCli } from './common';
+import { setBitrateLimit, setLitePunch, resolveCliPath } from '../cli';
+import { probeCliFeatures } from '../capabilities';
+import { getExtensionConfig } from '../config';
+import { warn, ok, registerCommand, withCli } from './common';
+
+/** 旧版 CLI 无 --set-bitrate-limit / --disable-lite-punch 时给出升级引导 */
+async function ensureGlobals(cliPath: string): Promise<boolean> {
+  const feats = await probeCliFeatures(cliPath);
+  if (feats.bitrateAndPunch) {
+    return true;
+  }
+  warn('当前 uuyc-cli 版本不支持码率上限 / 连接模式设置。请升级本机 UU远程主程序到最新版本后重试。');
+  return false;
+}
 
 export function registerSettingsCommands(context: vscode.ExtensionContext): void {
   registerCommand(context, 'uu.setBitrateLimit', async () => {
+    const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
+    if (!(await ensureGlobals(cliPath))) {
+      return;
+    }
     const input = await vscode.window.showInputBox({
       prompt: '设置远程连接的最大码率上限(Mbps)',
       placeHolder: '1-500;输入 0 表示不限制',
@@ -21,6 +37,10 @@ export function registerSettingsCommands(context: vscode.ExtensionContext): void
   });
 
   registerCommand(context, 'uu.toggleLitePunch', async () => {
+    const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
+    if (!(await ensureGlobals(cliPath))) {
+      return;
+    }
     const chosen = await vscode.window.showQuickPick(
       [
         {
