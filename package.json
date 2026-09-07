@@ -2,7 +2,7 @@
   "name": "uuyc-cli",
   "displayName": "UU远程助手 (UU Remote)",
   "description": "网易 UU远程 (GameViewer) 的 VSCode 集成:设备连接、云电脑管理、远程终端、附加到编辑器、AI 工具(MCP)、码率/模式设置与输入诊断。基于官方 uuyc-cli 封装。",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "publisher": "song-chaoyang",
   "license": "MIT",
   "engines": {

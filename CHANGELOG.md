@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.3
+
+- **远程终端降级可用**:旧版 CLI(无 `term --device-id` 管道通道)下,「打开远程终端」/「新建会话」
+  不再只是警告——自动 fallback 到 `term <device-id>`(实测旧 CLI 该命令请求主程序
+  打开终端窗口并返回 success:true),点一下就能在主程序中连上远程终端,并提示升级可获得 VSCode 内嵌终端。
+- 会话列表/附加/终止在旧 CLI 上仍引导升级(无法降级)
+
 ## 0.8.2
 
 - **CLI 版本兼容层(适配旧版 uuyc-cli / macOS UURemote 4.39.x 自带 CLI 1.0.0)**:

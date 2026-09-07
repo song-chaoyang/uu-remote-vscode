@@ -10,6 +10,7 @@ import {
   looksLikeError,
   parseTermSessions,
   resolveCliPath,
+  tryParseJson,
 } from '../cli';
 import { probeCliFeatures } from '../capabilities';
 import { getExtensionConfig } from '../config';
@@ -43,17 +44,38 @@ async function pickShell(shells: ShellKind[], placeHolder: string, defaultShell:
 }
 
 /**
- * 旧版 CLI 无 term --device-id 管道通道:打开远程终端前先探测,
- * 不支持时给出清晰引导(升级主程序 / 到主程序中使用内置终端)。
+ * 旧版 CLI 无 term --device-id 管道通道的开终端降级策略:
+ * - `term.open`(打开远程终端):fallback 到旧格式 `term <device-id>`,请求 UU远程主程序
+ *   打开终端窗口(实测旧 CLI 该命令返回 success:true,主程序弹出终端)——这是旧 CLI 上
+ *   唯一能"连上"终端的方式,比干警告有用得多;
+ * - `term.newSession` 同样 fallback(旧 CLI 无会话模型,即新开一个终端窗口);
+ * - 会话列表/附加/终止(list):无法降级,给出升级引导。
  */
-async function ensureTermChannel(cliPath: string): Promise<boolean> {
+async function ensureTermChannel(cliPath: string, device: Device | undefined, action: 'open' | 'list' = 'open'): Promise<boolean> {
   const feats = await probeCliFeatures(cliPath);
   if (feats.termChannel) {
     return true;
   }
+  if (device && action === 'open') {
+    try {
+      const r = await execCli(cliPath, ['term', device.deviceId]);
+      if (looksLikeError(r)) {
+        throw new CliError(firstErrorLine(r));
+      }
+      const obj = tryParseJson(r.stdout);
+      const success = obj && typeof obj === 'object' ? (obj as { success?: unknown }).success : undefined;
+      if (success === false) {
+        throw new CliError(`主程序未能打开终端:${r.stdout.split(/\r?\n/)[0] || '(无输出)'}`);
+      }
+      ok(`已在 UU远程主程序中打开「${device.deviceName}」的远程终端(当前 uuyc-cli 不支持 VSCode 内嵌终端,升级主程序后可获得内嵌终端)`);
+      log(`降级:通过主程序打开远程终端 ${device.deviceName}(${device.deviceId})`);
+    } catch (e) {
+      showCliError(e);
+    }
+    return false;
+  }
   warn(
-    '当前 uuyc-cli 版本不支持在 VSCode 中打开远程终端(需要新版 CLI 的 term --device-id 通道)。' +
-      '请升级本机 UU远程主程序到最新版本,或在 UU远程主程序中使用自带远程终端;本地 UU 终端(lterm)不受影响。',
+    '当前 uuyc-cli 版本不支持远程终端会话管理(term --list-sessions)。请升级本机 UU远程主程序到最新版本,或在 UU远程主程序中使用自带远程终端。',
   );
   return false;
 }
@@ -126,7 +148,7 @@ export function registerTermCommands(context: vscode.ExtensionContext, devicePro
       return;
     }
     const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
-    if (!(await ensureTermChannel(cliPath))) {
+    if (!(await ensureTermChannel(cliPath, dev, 'open'))) {
       return;
     }
     const shell = await pickShell(REMOTE_SHELLS, '选择远程 Shell', getExtensionConfig().defaultShell);
@@ -142,7 +164,7 @@ export function registerTermCommands(context: vscode.ExtensionContext, devicePro
       return;
     }
     const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
-    if (!(await ensureTermChannel(cliPath))) {
+    if (!(await ensureTermChannel(cliPath, dev, 'open'))) {
       return;
     }
     const shell = await pickShell(REMOTE_SHELLS, '选择远程 Shell', getExtensionConfig().defaultShell);
@@ -157,7 +179,11 @@ export function registerTermCommands(context: vscode.ExtensionContext, devicePro
     if (!dev) {
       return;
     }
-    const session = await withCli((cliPath) => pickRemoteSession(cliPath, dev, '选择会话'));
+    const cliPath = await resolveCliPath(getExtensionConfig().cliPath);
+    if (!(await ensureTermChannel(cliPath, dev, 'list'))) {
+      return;
+    }
+    const session = await withCli((cliPath2) => pickRemoteSession(cliPath2, dev, '选择会话'));
     if (!session) {
       return;
     }
